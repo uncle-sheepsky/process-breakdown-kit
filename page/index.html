@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>제작기 시안 v9</title>
+<style>html,body{margin:0;background:#080C1C;overflow:hidden}#c{display:block;width:1920px;height:1080px}</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="../build/data.js"></script><script src="../build/extra.js"></script><script src="../build/cloud.js"></script>
+</head><body><canvas id="c" width="1920" height="1080"></canvas>
+<script>
+/* 「봄의 자리를 만들자」 제작기 시안 v5 (◆작업자 11-20 지시 + 검증단 1차 + 작업자 v4 피드백)
+   곡 한 번 끝까지 · 목소리 계속 · 완성본 미리 안 보임 · 선화(펜 끝 하나가 선 하나를 쭉) → 파란 명암 → 8연 스포이트 채색 ·
+   커서는 이름 없이 일감 수만큼 · 쉬지 않음 · 주석 글 없음 · HUD 밖 글 없음 · 개인 사진 없음.
+   v5 순서: 먼저 완성돼야 할 것이 먼저 — 2023 손그림 양 → 고침 요청(빨간 동그라미) → 지움 → 지금 두루 · 다리도 잘못 나왔다가 고침 요청 → 다시 그림 ·
+            가사(메모 낱말 → 마지막 줄 고침 → 붙여넣기 → 맞춤)도 앞에서 · 다국어 자막 = 실제 번역 줄이 가사 칸에서 바뀜 ·
+            끝에서도 쉬지 않음(설명란 · 썸네일 · 렌더 · 다듬기) · 전체 화면은 마지막 몇 초만.
+   v6(검증단 2차): 3D 는 가운데 그림 위에서 짓고 돌림(창 · 새싹 · 두루 자리와 겹쳐 맞음 → 그림자가 제자리에 앉음) · 3D 조작은 왼쪽 칸 ·
+            스타일은 HUD 칸 안 타자 칸으로(왼쪽 style 칸 없앰) · 다국어는 가사 칸으로 다가가 크게 · 고침 요청에 기준 그림 카드 ·
+            채색 중 쉬는 손은 물감 쪽 · 끝은 짧게 → 카메라가 영상 칸을 화면 가득 채우고 다듬기 계속 · 다듬기 표시는 모서리만.
+   결정론: 화면 = 시각 T 하나의 함수(__seekTo) · 일정은 고정 씨앗 난수로 한 번만 짬 · 이징 = GSAP parseEase. */
+const D = window.D2, X2 = window.X2, SHP = X2.sheep, END = D.END, W = D.W, H = D.H, MW = D.MW, MH = D.MH, LY = D.lyr
+const LANGS = Object.keys(X2.langs), FONT_ALL = '"Malgun Gothic","Yu Gothic","Microsoft JhengHei","Leelawadee UI","Segoe UI",sans-serif'
+const cv = document.getElementById('c'), g = cv.getContext('2d')
+const ez = n => gsap.parseEase(n), E2 = ez('power2.inOut'), E3 = ez('power3.inOut'), EO = ez('power2.out'), EB = ez('back.out(1.7)')
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x)), seg = (t, a, b) => clamp((t - a) / (b - a)), lerp = (a, b, q) => a + (b - a) * q
+const TEXT = [249, 234, 210], SKY = [140, 205, 250], SKYL = [178, 222, 255], WHITE = [246, 242, 232], RED = '#E8503F'
+const rgb = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`
+const F = { x: 400, y: 44, w: W, h: H }, S = W / 1920, K = W / MW, fx = x => F.x + x * S, fy = y => F.y + y * S
+const LP = { x: 20, y: 44, w: 360, h: 630 }, RP = { x: 1540, y: 44, w: 360, h: 630 }
+const LANE = { x: 200, w: 1520, y0: 746, lh: 31 }
+const W3 = { x: F.x, y: F.y, w: W, h: H }          // 3D 는 영상 칸 위에서
+const I3 = { gen: { x: LP.x + 20, y: LP.y + 52, w: 96, h: 30 }, sl: { x0: LP.x + 136, x1: LP.x + 330, y: LP.y + 67 }, bake: { x: LP.x + 20, y: LP.y + 172, w: 132, h: 30 } }
+const ZN = { green: [90, 370, 880, 1050], yellow: [156, 409, 825, 758], blue: [156, 792, 825, 882], red: [94, 916, 863, 1040], tl: [104, 980, 880, 1030] }
+const ZC = { green: '#8FD19A', yellow: '#E8D36A', blue: '#7FB2F0', red: '#E36F6F', tl: '#B9C2D6' }
+const zr = k => { const r = ZN[k]; return [fx(r[0]), fy(r[1]), (r[2] - r[0]) * S, (r[3] - r[1]) * S] }
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296 } }
+function rr(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r) }
+
+// ── 한글 타자(자모 조합 상태까지)
+const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ', TC = new Map()
+function strokes(text) {
+  if (TC.has(text)) return TC.get(text)
+  const st = []; let pre = ''
+  for (const ch of text) {
+    const c = ch.charCodeAt(0)
+    if (c >= 0xAC00 && c <= 0xD7A3) {
+      const s = c - 0xAC00, cho = Math.floor(s / 588), jung = Math.floor((s % 588) / 28), jong = s % 28
+      st.push([pre + CHO[cho], true]); st.push([pre + String.fromCharCode(0xAC00 + (cho * 21 + jung) * 28), true]); if (jong) st.push([pre + ch, true])
+      pre += ch
+    } else { pre += ch; st.push([pre, false]) }
+  }
+  TC.set(text, st); return st
+}
+function typed(text, q) { if (q <= 0) return ['', false, -1]; if (q >= 1) return [text, false, 999]; const st = strokes(text), k = Math.min(st.length - 1, Math.floor(q * st.length)); return [st[k][0], st[k][1], k] }
+const MW_ = new Map(); function mw(font, s) { const k = font + '|' + s; if (!MW_.has(k)) { g.save(); g.font = font; MW_.set(k, g.measureText(s).width); g.restore() } return MW_.get(k) }
+
+// ── 일정(작업 묶음) — 커서마다 쉬지 않게 · 고정 씨앗
+const J = [], ID = {}, rnd = mulberry(20261120)
+function job(c, t0, dur, k, o = {}) { const j = Object.assign({ c, t0, t1: t0 + dur, k }, o); J.push(j); if (o.id) ID[o.id] = j; return j }
+const jp = (id, T) => { const j = ID[id]; return j ? clamp((T - j.t0) / (j.t1 - j.t0)) : 0 }
+const jp_ = (j, T) => clamp((T - j.t0) / (j.t1 - j.t0))
+const done = (id, T) => { const j = ID[id]; return j ? T >= j.t1 : false }
+const ANCH = []
+const anchor = (t, r) => ANCH.push({ t, r })
+const P = D.pieces, pbox = k => { const b = P[k].bbox; return [F.x + b[0] * K, F.y + b[1] * K, (b[2] - b[0]) * K, (b[3] - b[1]) * K] }
+const pieceDur = k => clamp(0.4 + P[k].n / 7000, 0.45, 2.2)
+const LEGS = [668, 430, 975, 585], LEGSM = LEGS.map(v => v / K)
+const LYRH = 86, YCUR = 538, Lt = i => LY[i].t0
+const OUT0 = 999, FULL = 999                         // v6: 전체 화면은 카메라가 영상 칸을 화면 가득 채워서(146초~)
+
+const busy = c => J.filter(j => j.c === c).sort((a, b) => a.t0 - b.t0)
+function slot(c, from, dur, until = 1e9) { const L = busy(c); let t = from; for (const j of L) { if (j.t1 + 0.3 <= t) continue; if (j.t0 - 0.3 >= t + dur) break; t = Math.max(t, j.t1 + 0.3) } return t + dur <= until ? t : null }
+function greedy(keys, cursors, from, until) {
+  for (const k of keys) {
+    let best = null
+    for (const c of cursors) { const t = slot(c, Math.max(from, CIN[c]), pieceDur(k), until + 6); if (t !== null && (!best || t < best[1])) best = [c, t] }
+    if (!best) continue
+    const j = job(best[0], best[1], pieceDur(k), 'draw', { id: 'p' + k, piece: k }); anchor(j.t1, pbox(k))
+  }
+}
+const CIN = [0.0, 0.0, 2.2, 11.3, 12.0, 39.4, 75.6]
+const COUT = [154.6, 154.5, 153.4, 153.8, 154.0, 154.2, 154.4]
+// 끝(◆작업자 11-20): 노래가 마무리되며 고정 댓글 — 영상 칸 아래 댓글 칸에 쳐서 고정
+const CM = { x: F.x, y: F.y + H + 16, w: W, h: 74, text: '봄을 기다리는 여러분의 꿈은 어떤 모습인가요?' }
+const PAL = i => ({ x: F.x + W + 22, y: F.y + 70 + i * 62 })
+const SHC = { x: F.x + (SHP.x + SHP.w / 2) * K, y: F.y + (SHP.y + SHP.h / 2) * K, rx: SHP.w * K * 0.56, ry: SHP.h * K * 0.56 }
+const EDL = i => LP.y + 58 + i * 17.6                  // 가사.txt 줄 y
+
+// c0 — 그림: 2023 양(잘못 나온 두루) → 지금 두루 · 다리 다시 · 제목 · 아이콘
+job(0, 0.1, 2.6, 'sdraw', { id: 'oldSheep' })
+const REF = { x: F.x + 300, y: F.y + 150, s: 210 }      // 고침 요청: 「이렇게」 기준 그림(지금 두루 선화) 카드
+job(0, 2.85, 0.65, 'drag', { id: 'refDrag', a: { x: RP.x + 120, y: RP.y + 220 }, b: { x: REF.x + REF.s / 2, y: REF.y + REF.s / 2 } })
+job(0, 4.0, 2.6, 'draw', { id: 'p1_1', piece: '1_1' }); job(0, 6.7, 2.5, 'draw', { id: 'p2_1', piece: '2_1' })
+job(0, 10.9, 1.5, 'legs', { id: 'legDraw' })
+job(0, 12.6, 1.1, 'draw', { id: 'p1_2', piece: '1_2' }); job(0, 13.85, 1.15, 'draw', { id: 'p2_2', piece: '2_2' })
+anchor(6.6, pbox('1_1')); anchor(12.4, pbox('2_1'))
+job(0, 15.3, 0.35, 'box', { id: 'tbox', a: { x: F.x + 128, y: F.y + 32 }, b: { x: F.x + 452, y: F.y + 238 } })
+job(0, 15.9, 0.8, 'type', { id: 'tt1', text: 'WINTER JAZZ', x: F.x + 196, y: F.y + 78, font: '15px Consolas, monospace', gen: false })
+job(0, 16.9, 1.5, 'type', { id: 'tt2', text: '봄의 자리를 만들자', x: F.x + 150, y: F.y + 150, font: '32px "Malgun Gothic", sans-serif', gen: false })
+anchor(18.5, [F.x + 140, F.y + 40, 310, 190])
+for (let i = 0; i < 7; i++) job(0, 18.6 + i * 0.54, 0.42, 'icon', { id: 'ic' + i, i })
+job(0, 22.6, 1.8, 'draw', { id: 'p1_3', piece: '1_3' }); job(0, 24.6, 2.0, 'draw', { id: 'p2_3', piece: '2_3' })
+job(0, 40.5, 0.9, 'type', { id: 'tfont', text: '글씨: 손글씨', x: F.x + 300, y: F.y + 226, font: '15px Consolas, "Malgun Gothic", monospace', box: true })
+job(0, 41.7, 2.4, 'draw', { id: 'p15_1', piece: '15_1' })
+job(0, 63.6, 5.4, 'orbit', { id: 'orbit', cx: F.x + 700, cy: F.y + 330, r: 170 })
+for (let i = 0; i < 7; i++) job(0, 112.5 + i * 0.36, 0.26, 'click', { id: 'pal' + i, p: PAL(i) })
+// 스포이트 채색: 8연 가사 줄에 맞춰 · 마지막 줄 「봄의 자리를 만들자」 에 한 번에
+const FILL_ORDER = [[5, 0, Lt(28) + 0.2 - 1.5], [0, 1, Lt(28) + 2.6], [2, 2, Lt(29) - 0.75], [6, 3, Lt(29) + 0.75], [3, 4, Lt(30) - 0.75], [1, 5, Lt(30) + 0.85], [4, 0, Lt(31) - 0.75]]
+FILL_ORDER.forEach(([fid, c, t], k) => { const f = D.fills.find(x => x.id === fid); job(c, t, 1.0, 'drop', { id: 'd' + k, fid, from: PAL(D.fills.indexOf(f)), to: { x: F.x + f.seed[0] * K, y: F.y + f.seed[1] * K } }) })
+// 끝: 썸네일 고르기 → 공개(오른쪽 칸 안)
+const THP = i => ({ x: RP.x + 16 + (i % 2) * 172, y: RP.y + 56 + Math.floor(i / 2) * 112 })
+for (let i = 0; i < 6; i++) job(0, 136.8 + i * 0.32, 0.25, 'click', { id: 'th' + i, p: { x: THP(i).x + 80, y: THP(i).y + 45 } })
+job(0, 138.8, 0.5, 'ring', { id: 'thRing', cx: THP(3).x + 80, cy: THP(3).y + 45, rx: 92, ry: 56 })
+job(0, 139.4, 0.3, 'click', { id: 'thPick', p: { x: THP(0).x + 80, y: THP(0).y + 45 } })
+job(0, 141.6, 0.4, 'click', { id: 'publish', p: { x: RP.x + 180, y: RP.y + 582 } })
+
+// c1 — 틀 · 가사 · 글자
+job(1, 0.05, 0.8, 'box', { id: 'frame', a: { x: F.x, y: F.y }, b: { x: F.x + W, y: F.y + H } })
+job(1, 1.0, 0.4, 'box', { id: 'zy', a: { x: fx(156), y: fy(409) }, b: { x: fx(825), y: fy(758) } })
+{ let t = 1.5; for (let i = 0; i < 8; i++) { const d = clamp(LY[i].text.length * 0.11, 0.7, 1.25); t = Math.max(t, Lt(i) - d - 0.15); job(1, t, d, 'tly', { id: 'ly' + i, i }); t += d + 0.12 } }
+anchor(3, [fx(156), fy(495), 669 * S, 86 * S])
+job(1, 18.0, 0.5, 'drag', { id: 'lastStrike', a: { x: LP.x + 50, y: EDL(31) - 5 }, b: { x: LP.x + 220, y: EDL(31) - 5 } })
+job(1, 18.6, 1.4, 'type', { id: 'lastType', text: '봄의 자리를 만들자', x: LP.x + 50, y: EDL(31), font: '13px "Malgun Gothic", sans-serif', gen: false })
+job(1, 20.3, 0.3, 'click', { id: 'pasteClick', p: { x: fx(490), y: fy(538) } }); job(1, 20.7, 0.6, 'paste', { id: 'paste', p: { x: fx(490) + 30, y: fy(538) + 12 } })
+// 스타일 = HUD 칸 안 타자 칸(친 칸이 곧 그 칸의 모양이 됨)
+const STY = [['sPanel', 'panel 70%', 112, 398], ['sBarFill', 'fill: gradient', 130, 948], ['sBarCap', 'cap: 2px', 470, 948], ['sTime', 'font: Palatino', 520, 1012], ['sSnow', 'snow × 140', 112, 398], ['sBreath', 'breath 0.66', 470, 398], ['sSprout', 'pulse: beat', 112, 398], ['sFont', 'font: Noto Serif 600', 200, 430], ['sGlow', 'glow: 어절', 200, 430]]
+{ const ST = { sPanel: 25.7, sBarFill: 27.0, sBarCap: 28.3, sTime: 29.6, sFont: 44.6, sGlow: 46.0, sSnow: 47.6, sBreath: 49.2, sSprout: 52.0 }; STY.forEach(([id, s, x, y]) => { const d = clamp(s.length * 0.07, 0.7, 1.2); job(1, ST[id], d, 'type', { id, text: s, x: fx(x), y: fy(y), font: '15px Consolas, "Malgun Gothic", monospace', box: true, fade: 1.1 }) }) }
+job(1, 149.0, 0.3, 'click', { id: 'cmClick', p: { x: CM.x + 140, y: CM.y + 48 } })
+job(1, 149.45, 3.0, 'type', { id: 'cmType', text: CM.text, x: CM.x + 84, y: CM.y + 52, font: '24px "Malgun Gothic", sans-serif', gen: false })
+job(1, 152.75, 0.35, 'click', { id: 'cmPin', p: { x: CM.x + CM.w - 62, y: CM.y + 37 } })
+const DESC = ['설명란', '작곡 · SUNO', '그림 · GPT', '자막 · 아이콘 · 음파 · 눈 · Claude', '목소리 · AI 모델에 학습시킨 내 목소리', '가사 · 직접 쓴 초안을 GPT와 다듬음']
+{ let t = 133.7; DESC.forEach((s, i) => { const d = clamp(s.length * 0.032, 0.3, 0.75), base = i ? 20 : 21, px = Math.min(base, Math.floor(base * (LP.w - 44) / mw(`${i ? '' : 'bold '}${base}px "Malgun Gothic", sans-serif`, s)));   // ◆작업자: 칸 밖으로 튀어나오지 않게 줄마다 글자 크기 맞춤
+  job(1, t, d, 'type', { id: 'desc' + i, text: s, x: LP.x + 20, y: LP.y + 60 + i * 46, font: `${i ? '' : 'bold '}${px}px "Malgun Gothic", sans-serif`, gen: false }); t += d + 0.2 }) }
+
+// c2 — 고침 요청 · 칸 · HUD(타자 칸에 쳐서 만듦) · 맞춤 · 3D · 렌더
+job(2, 2.75, 0.6, 'ring', { id: 'ringOld', cx: SHC.x, cy: SHC.y, rx: SHC.rx, ry: SHC.ry })
+job(2, 3.45, 0.55, 'drag', { id: 'oldErase', a: { x: SHC.x - SHC.rx, y: SHC.y }, b: { x: SHC.x + SHC.rx, y: SHC.y } })
+job(2, 4.4, 0.45, 'box', { id: 'zg', a: { x: fx(90), y: fy(370) }, b: { x: fx(880), y: fy(1050) } })
+job(2, 5.0, 0.4, 'box', { id: 'zr', a: { x: fx(94), y: fy(916) }, b: { x: fx(863), y: fy(1040) } })
+job(2, 5.6, 1.0, 'type', { id: 'bars', text: 'bars × 48', x: fx(130), y: fy(948), font: '15px Consolas, monospace', box: true, fade: 1.6 })
+job(2, 6.8, 0.7, 'drag', { id: 'dup', a: { x: fx(126), y: fy(970) }, b: { x: fx(845), y: fy(970) } })
+job(2, 7.7, 0.4, 'box', { id: 'zb', a: { x: fx(156), y: fy(792) }, b: { x: fx(825), y: fy(882) } })
+job(2, 8.2, 0.8, 'type', { id: 'icons', text: 'icons × 7', x: fx(176), y: fy(846), font: '15px Consolas, monospace', box: true, fade: 1.0 })
+job(2, 9.6, 0.6, 'ring', { id: 'legRing', cx: F.x + (LEGS[0] + LEGS[2]) / 2, cy: F.y + (LEGS[1] + LEGS[3]) / 2 + 20, rx: 190, ry: 80 })
+job(2, 10.3, 0.5, 'drag', { id: 'legErase', a: { x: F.x + LEGS[0] - 30, y: F.y + 540 }, b: { x: F.x + LEGS[2] + 40, y: F.y + 540 } })
+job(2, 11.0, 0.35, 'box', { id: 'zt', a: { x: fx(104), y: fy(980) }, b: { x: fx(880), y: fy(1030) } })
+job(2, 11.5, 0.9, 'type', { id: 'time', text: '0:00 / 2:37', x: fx(130), y: fy(1012), font: '14px Consolas, monospace', box: true, fade: 1.0 })
+job(2, 12.6, 0.3, 'click', { id: 'play', p: { x: fx(478), y: fy(1016) } })
+anchor(7.6, [fx(110), fy(914), 740 * S, 66 * S]); anchor(9.2, zr('blue')); anchor(12.6, [fx(104), fy(985), 776 * S, 40 * S])
+job(2, 21.4, 1.1, 'type', { id: 'align', text: 'align_lyrics.py  ▶', x: LP.x + 16, y: LP.y + 30, font: '15px Consolas, monospace', gen: false })
+job(2, 23.8, 0.45, 'click', { id: 'fix0', p: { x: LP.x + 300, y: EDL(16) - 4 } }); job(2, 24.4, 0.45, 'click', { id: 'fix1', p: { x: LP.x + 300, y: EDL(19) - 4 } })
+job(2, 56.8, 0.35, 'click', { id: 'gen', p: { x: I3.gen.x + 48, y: I3.gen.y + 15 } })
+job(2, 57.4, 5.6, 'slider', { id: 'mesh', a: { x: I3.sl.x0, y: I3.sl.y }, b: { x: I3.sl.x1, y: I3.sl.y } })
+job(2, 69.3, 0.6, 'click', { id: 'bake', p: { x: I3.bake.x + 66, y: I3.bake.y + 15 } })
+job(2, 88.8, 1.0, 'type', { id: 'midi', text: 'midi +0.215s', x: fx(560), y: fy(870), font: '14px Consolas, monospace', box: true, fade: 1.2 })
+job(2, 138.6, 0.35, 'click', { id: 'render', p: { x: LANE.x + LANE.w - 46, y: LANE.y0 - 22 } })
+
+// c3 — 빛 · c4 — 메모 낱말 · 빛 검사
+job(3, 63.8, 2.6, 'lightW', { id: 'light' }); job(3, 66.7, 2.3, 'lightS', { id: 'light2' })   // ◆작업자: 실제로 따진 빛 = 창 빛 · 새싹 빛
+const MEMO = ['겨울의 쇳소리', '밥 짓는 냄새', '손금에 흙빛', '파란 추위', '입김', '볕의 숨결']
+MEMO.forEach((w, i) => job(4, 12.4 + i * 0.72, 0.58, 'type', { id: 'm' + i, text: w, x: RP.x + 24, y: RP.y + 96 + i * 44, font: '22px "Malgun Gothic", sans-serif', gen: false }))
+job(4, 17.0, 0.8, 'drag', { id: 'memoDrag', a: { x: RP.x + 70, y: RP.y + 96 + 5 * 44 - 6 }, b: { x: LP.x + 120, y: EDL(29) - 4 } })
+;['밝아진 곳 없음 ✓', '가장 짙은 곳 −26 ✓', '바뀐 면적 1.6% ✓'].forEach((s, i) => job(4, 69.9 + i * 0.62, 0.5, 'type', { id: 'chk' + i, text: s, x: LP.x + 20, y: LP.y + 236 + i * 26, font: '15px Consolas, "Malgun Gothic", monospace', gen: false }))
+// 파란 명암 칠(후렴 동안) — 색 덩어리마다 붓으로 쓸어 칠함
+// v7(검증단 3차: 간주 B 에 그림이 안 변함): 배경은 후렴 · 두루는 간주 B(다국어와 같이)
+const TONE_ORDER = [[0, 3, 76.2, 4.0], [3, 4, 77.0, 3.6], [1, 5, 78.0, 3.2], [2, 0, 96.6, 2.4], [6, 3, 97.6, 2.2], [5, 2, 98.8, 2.4], [4, 0, 100.2, 2.0]] //.0]]
+TONE_ORDER.forEach(([fid, c, t, d], k) => job(c, t, d, 'paint', { id: 't' + k, fid }))
+// 간주 B 빛 시험(검증단 4차: 간주 B 변화가 느림): 창 빛 키움 · 눈 늘림
+job(3, 104.0, 1.0, 'type', { id: 'glowT', text: 'window.glow 0.9', x: fx(1460), y: fy(330), font: '15px Consolas, monospace', box: true, fade: 1.4 })
+job(2, 107.6, 0.9, 'type', { id: 'snow2', text: 'snow × 300', x: fx(1100), y: fy(120), font: '15px Consolas, monospace', box: true, fade: 1.4 })
+// 다국어 자막(간주 B): 언어 줄을 가사 칸으로 끌어 넣을 때마다 그 언어로 바뀜
+const SUBY = i => LP.y + 40 + i * 46
+for (let i = 1; i < LANGS.length; i++) job([1, 4, 5, 6][i % 4], 96.4 + (i - 1) * 1.45, 0.9, 'drag', { id: 'sub' + i, lang: LANGS[i], a: { x: LP.x + 60, y: SUBY(i) }, b: { x: fx(490), y: fy(600) } })
+
+// 선화 조각을 빈 손에 나눠 줌(단계 1 → 2 → 3)
+const dc = [826 / K, 322 / K], dist = k => { const b = P[k].bbox; return Math.hypot((b[0] + b[2]) / 2 - dc[0], (b[1] + b[3]) / 2 - dc[1]) }
+const bgKeys = tr => Object.keys(P).filter(k => P[k].tier === tr && P[k].r >= 3 && P[k].r !== D.TITLE_REG).sort((a, b) => dist(a) - dist(b))
+greedy(bgKeys(1), [3, 2], 11.4, 22)
+greedy(bgKeys(2), [3, 4, 5, 0], 22.6, 44)
+greedy(bgKeys(3), [3, 4, 5, 0], 44.2, 76)
+// 남은 빈칸 = 다듬기(선택 · 정렬 · 크기) / 채색 중에만 번지는 색을 따라감
+for (let c = 0; c < 7; c++) {
+  const L = busy(c)
+  const edges = [...L.map(j => [j.t0, j.t1]), [COUT[c], COUT[c]]]
+  let prevEnd = CIN[c] - 0.3
+  for (const [a, b] of edges) {
+    let s = prevEnd + 0.3
+    while (a - s > 1.0) {
+      const d = 0.5 + rnd() * 0.45
+      if (s > Lt(28) - 0.6 && s < Lt(31) + 1.5) job(c, s, d, 'watch', { v: c, tgt: PAL(c % 7) })
+      else { const av = ANCH.filter(x => x.t <= s); if (av.length) { const a0 = av[Math.floor(rnd() * av.length)], [x, y, w, h] = a0.r, sw = Math.min(w, 240), sh = Math.min(h, 160); job(c, s, d, 'nudge', { an: { t: a0.t, r: [x + (w - sw) * rnd(), y + (h - sh) * rnd(), sw, sh] }, v: Math.floor(rnd() * 4) }) } }
+      s += d + 0.25
+    }
+    prevEnd = Math.max(prevEnd, b)
+  }
+}
+const JC = []; for (let c = 0; c < 7; c++) JC[c] = busy(c)
+
+// ── 카메라: 일하는 곳으로 다가감
+const CAMK = [[0, 1226, 380, 1.5], [4.2, 940, 400, 1.2], [9.4, 1221, 520, 1.7], [12.5, 1720, 260, 1.7], [16.6, 420, 430, 1.3],
+  [25.3, 900, 380, 1.2], [31.6, 960, 540, 1.0], [41.4, 700, 190, 2.0], [44.4, 686, 371, 1.9], [47.4, 1100, 330, 1.25], [49.0, 1000, 260, 1.6], [51.8, 984, 560, 2.0], [54.4, 960, 540, 1.0], [56.4, 900, 360, 1.3], [72.3, 960, 540, 1.0],
+  [75.8, 960, 380, 1.2], [92.5, 960, 540, 1.0], [96.0, 860, 400, 1.15], [112.2, 1100, 360, 1.25], [115.4, 980, 360, 1.55], [131.2, 960, 540, 1.0],
+  [133.4, 240, 300, 1.55], [138.4, 960, 540, 1.0], [142.4, 960, 359, 1920 / W], [148.4, 960, 430, 1.22]]
+function camAt(T) { let k = 0; for (let i = 0; i < CAMK.length; i++) if (CAMK[i][0] <= T) k = i; const a = CAMK[Math.max(0, k - 1)], b = CAMK[k], q = k === 0 ? 1 : E3(seg(T, b[0], b[0] + 0.8)); return { cx: lerp(a[1], b[1], q), cy: lerp(a[2], b[2], q), s: lerp(a[3], b[3], q) } }
+
+// ── 위치(일감마다)
+function penArr(pen, q) { if (!pen.length) return [0, 0]; let a = pen[0], b = pen[pen.length - 1]; for (let i = 0; i < pen.length - 1; i++) if (pen[i + 1][0] >= q) { a = pen[i]; b = pen[i + 1]; break } const u = clamp((q - a[0]) / Math.max(1e-5, b[0] - a[0])); return [lerp(a[1], b[1], u), lerp(a[2], b[2], u)] }
+const penAt = (k, q) => P[k].pen.length ? penArr(P[k].pen, q) : [(P[k].bbox[0] + P[k].bbox[2]) / 2, (P[k].bbox[1] + P[k].bbox[3]) / 2]
+const sheepPen = q => { const p = penArr(SHP.pen, q); return [SHP.x + p[0], SHP.y + p[1]] }
+function lyY(i, T) { return fy(YCUR + (i - lyricP(T)) * LYRH) }
+let FBOX = []
+function jpos(j, q, T) {
+  switch (j.k) {
+    case 'box': case 'drag': { const e = E2(q); return { x: lerp(j.a.x, j.b.x, e), y: lerp(j.a.y, j.b.y, e), ic: j.k === 'drag' ? 'hand' : 'arrow', press: q > 0.04 && q < 0.96 } }
+    case 'slider': { const e = E2(q), w = j.id === 'mesh' ? Math.sin(q * Math.PI * 3) * 0.12 : 0; return { x: lerp(j.a.x, j.b.x, clamp(e + w)), y: j.a.y, ic: 'hand', press: q > 0.05 && q < 0.95 } }
+    case 'type': { const [s, , k] = typed(j.text, q); return { x: j.x + mw(j.font, s) + 6, y: j.y + 6, ic: 'kb', key: k } }
+    case 'tly': { const L = LY[j.i], [s, , k] = typed(L.text, q), f = lyFont(T), w = mw(f, L.text); return { x: fx(490) - w / 2 + mw(f, s) + 6, y: lyY(j.i, T) + 8, ic: 'kb', key: k } }
+    case 'paste': return { x: j.p.x, y: j.p.y, ic: 'kb', key: 3 + Math.floor(q * 3) }
+    case 'draw': { const p = penAt(j.piece, q); return { x: F.x + p[0] * K, y: F.y + p[1] * K, ic: 'pen', press: true } }
+    case 'sdraw': { const p = sheepPen(q); return { x: F.x + p[0] * K, y: F.y + p[1] * K, ic: 'pen', press: true } }
+    case 'icon': { const [x, y, w, h] = icRect(j.i); return { x: x + w * (0.5 + 0.45 * Math.sin(q * Math.PI * 5)), y: y + h * q, ic: 'pen', press: true } }
+    case 'legs': { const p = [lerp(LEGS[0], LEGS[2], (q * 3) % 1), lerp(LEGS[1], LEGS[3], q)]; return { x: F.x + p[0], y: F.y + p[1], ic: 'pen', press: true } }
+    case 'ring': { const a = -Math.PI / 2 + q * Math.PI * 2.1; return { x: j.cx + Math.cos(a) * j.rx, y: j.cy + Math.sin(a) * j.ry, ic: 'pen', press: true } }
+    case 'click': return { x: j.p.x, y: j.p.y, ic: 'arrow', press: q > 0.3 && q < 0.75 }
+    case 'orbit': return { x: j.cx + Math.sin(q * Math.PI * 2.2) * j.r, y: j.cy + Math.sin(q * Math.PI * 1.3) * j.r * 0.35, ic: 'rot', press: true }
+    case 'lightW': case 'lightS': { const h = lightHandle(T, j.k === 'lightW' ? 'w' : 's'); return { x: h.x, y: h.y, ic: 'hand', press: q > 0.05 && q < 0.95 } }
+    case 'paint': { const b = FBOX[j.fid] || [0, 0, MW, MH], rows = 5, r = Math.min(rows - 1, Math.floor(q * rows)), u = (q * rows) % 1, x = lerp(b[0], b[2], r % 2 ? 1 - u : u), y = lerp(b[1], b[3], (r + 0.5) / rows); return { x: F.x + x * K, y: F.y + y * K, ic: 'brush', press: true } }
+    case 'drop': { if (q < 0.3) return { x: j.from.x, y: j.from.y, ic: 'drop', press: q > 0.1 && q < 0.22 }; const e = E3(seg(q, 0.3, 0.72)); return { x: lerp(j.from.x, j.to.x, e), y: lerp(j.from.y, j.to.y, e) - Math.sin(e * Math.PI) * 90, ic: 'drop', press: q > 0.74 && q < 0.86 } }
+    case 'nudge': { const [x, y, w, h] = j.an.r, st = Math.floor(q * 4); return { x: x + w * (0.3 + 0.4 * ((j.v * 37 % 10) / 10)) + st * 3, y: y + h * 0.5 + (j.v === 1 ? st * 2 : 0), ic: j.v === 2 ? 'hand' : 'arrow', press: q > 0.2 && q < 0.8 } }
+    // ◆작업자 11-20: 빙글빙글 돌기 대신 한 켠에 일렬로 서서 박자에 맞춰 둥실둥실(낮은 대역 세기 = 박)
+    case 'watch': { const b = barV(T, 2) * 0.7 + barV(T, 5) * 0.3; return { x: F.x + W - 40 - j.v * 46, y: F.y + H + 8 - b * 12 - 2 * Math.sin(T * 3.1 + j.v * 0.8), ic: 'arrow' } }
+  }
+  return { x: 960, y: 540, ic: 'arrow' }
+}
+function activeFill(T) { let best = null; for (let k = 0; k < 7; k++) { const j = ID['d' + k]; if (j && T >= j.t0 - 0.3) best = j } return best }
+const entry = c => [{ x: -40, y: 300 + c * 90 }, { x: 1960, y: 200 + c * 80 }][c % 2]
+function cursorAt(c, T) {
+  const L = JC[c]; if (!L.length || T < L[0].t0 - 0.7) return null
+  for (let i = 0; i < L.length; i++) {
+    const j = L[i]
+    if (T < j.t0) {
+      const pv = i > 0 ? L[i - 1] : null, a = pv ? jpos(pv, 1, pv.t1) : entry(c), b = jpos(j, 0, j.t0), t0 = pv ? pv.t1 : j.t0 - 0.7
+      const q = E3(seg(T, t0, j.t0)), arc = Math.sin(q * Math.PI) * Math.min(70, Math.hypot(b.x - a.x, b.y - a.y) * 0.18)
+      return { x: lerp(a.x, b.x, q), y: lerp(a.y, b.y, q) - arc, ic: q > 0.85 && b.ic !== 'kb' ? b.ic : 'arrow' }
+    }
+    if (T < j.t1) return jpos(j, (T - j.t0) / (j.t1 - j.t0), T)
+  }
+  const last = L[L.length - 1], a = jpos(last, 1, last.t1), b = entry(c + 1), t0 = Math.max(last.t1, COUT[c] - 0.1), q = E3(seg(T, t0, t0 + 0.8))
+  if (q >= 1) return null
+  return { x: lerp(a.x, b.x, q), y: lerp(a.y, b.y, q), ic: 'arrow' }
+}
+
+// ── 커서 그림(도구에 따라 모양만 바뀜 · 이름표 없음)
+const KB_ROWS = [11, 10, 8]
+function drawCursor(p) {
+  if (!p) return
+  g.save(); g.translate(p.x, p.y); g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 7; g.lineJoin = 'round'
+  if (p.ic === 'kb') {
+    const w = 58, h = 26; g.translate(-6, 6); g.fillStyle = '#F4F1EA'; rr(0, 0, w, h, 5); g.fill(); g.shadowBlur = 0; g.strokeStyle = '#0a0d18'; g.lineWidth = 1.3; g.stroke()
+    let n = 0; KB_ROWS.forEach((cnt, r) => { for (let i = 0; i < cnt; i++) { const lit = ((p.key * 7 + 3) % 29) === n, kx = 4 + r * 2 + i * 4.6, ky = 3.5 + r * 5.6 + (lit ? 0.8 : 0); g.fillStyle = lit ? rgb(SKY) : '#3a3f4e'; rr(kx, ky, 3.6, 4.2, 1); g.fill(); n++ } })
+    g.fillStyle = (p.key % 9 === 0) ? rgb(SKY) : '#3a3f4e'; rr(16, 20.6, 26, 3.4, 1); g.fill()
+  } else if (p.ic === 'pen' || p.ic === 'brush') {
+    g.rotate(-0.7); g.fillStyle = '#F4F1EA'; rr(-3.5, -30, 7, 24, 2); g.fill(); g.shadowBlur = 0; g.strokeStyle = '#0a0d18'; g.lineWidth = 1.2; g.stroke()
+    if (p.ic === 'brush') { g.beginPath(); g.ellipse(0, -2, 5.5, 7, 0, 0, 7); g.fillStyle = rgb(SKY); g.fill(); g.stroke() }
+    else { g.beginPath(); g.moveTo(-3.5, -6); g.lineTo(3.5, -6); g.lineTo(0, 0); g.closePath(); g.fillStyle = rgb(SKY); g.fill(); g.stroke() }
+  } else if (p.ic === 'drop') {
+    g.rotate(0.75); g.fillStyle = '#F4F1EA'; rr(-3, -26, 6, 18, 2); g.fill(); g.shadowBlur = 0; g.strokeStyle = '#0a0d18'; g.lineWidth = 1.2; g.stroke()
+    g.beginPath(); g.arc(0, -30, 6, 0, 7); g.fillStyle = '#E8503F'; g.fill(); g.stroke(); g.beginPath(); g.moveTo(-2, -8); g.lineTo(2, -8); g.lineTo(0, 0); g.closePath(); g.fillStyle = '#F4F1EA'; g.fill(); g.stroke()
+  } else {
+    g.fillStyle = '#F4F1EA'; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, 22); g.lineTo(6, 16.5); g.lineTo(10.5, 26); g.lineTo(14, 24.5); g.lineTo(9.5, 15.5); g.lineTo(17, 15.5); g.closePath(); g.fill(); g.shadowBlur = 0; g.strokeStyle = '#0a0d18'; g.lineWidth = 1.4; g.stroke()
+    if (p.ic === 'hand') { g.fillStyle = rgb(SKY); g.beginPath(); g.arc(18, 26, 5, 0, 7); g.fill() }
+    if (p.ic === 'rot') { g.strokeStyle = rgb(SKY); g.lineWidth = 2; g.beginPath(); g.arc(20, 26, 7, 0.3, 5.2); g.stroke() }
+  }
+  if (p.press) { g.shadowBlur = 0; g.strokeStyle = rgb(SKY, 0.8); g.lineWidth = 1.5; g.beginPath(); g.arc(0, 0, 9, 0, 7); g.stroke() }
+  g.restore()
+}
+
+// ── 노래 · 가사 · 다국어 자막
+const lyricP = T => { let p = 0; for (let k = 1; k < LY.length; k++) { const a = Lt(k) - 0.25; if (T >= a + 0.2) p = k; else { if (T > a) p = k - 1 + E2((T - a) / 0.2); break } } return p }
+const lyFont = T => jp('sFont', T) >= 0.999 ? `600 ${40 * S}px "Noto Serif KR", serif` : `400 ${38 * S}px "Malgun Gothic", sans-serif`
+function subLang(T) {           // 지금 가사 칸에 붙는 번역 언어(마지막으로 끌어 넣은 것 → 다 넣으면 차례로 돎)
+  let n = 0; for (let i = 1; i < LANGS.length; i++) if (done('sub' + i, T)) n = i
+  if (!n || T > Lt(28) - 1.2) return null              // 채색(8연) 동안은 깨끗하게
+  if (n < LANGS.length - 1) return LANGS[n]
+  return LANGS[1 + Math.floor((T - ID['sub' + (LANGS.length - 1)].t1) / 0.45) % (LANGS.length - 1)]
+}
+function drawLyrics(T, A) {
+  if (A <= 0 || !done('zy', T)) return
+  const [x, y, w, h] = zr('yellow'), p = lyricP(T), font = lyFont(T), glow = jp('sGlow', T) >= 1, pq = jp('paste', T)
+  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip()
+  for (let i = Math.max(0, Math.floor(p) - 3); i < Math.min(LY.length, Math.floor(p) + 4); i++) {
+    const L = LY[i], yy = lyY(i, T), d = Math.abs(i - p), a = A * (d < 0.5 ? 1 : d < 1.5 ? 0.45 : 0.2)
+    let s = null, comp = false
+    if (i < 8) { const r = typed(L.text, jp('ly' + i, T)); s = r[0]; comp = r[1] } else if (pq * 24 > i - 8) s = L.text
+    const full = mw(font, L.text), x0 = fx(490) - full / 2
+    if (!s) { g.fillStyle = rgb(SKY, 0.16 * Math.min(1, A)); rr(x0 + 4, yy - 5, full * 0.92, 10, 5); g.fill(); continue }
+    g.font = font; g.textBaseline = 'middle'
+    if (glow) { let cx = x0; for (const [wt, wt0] of L.words) { const sung = T >= wt0; g.fillStyle = sung ? rgb(SKYL, a) : rgb(TEXT, a * 0.92); g.fillText(wt, cx, yy); cx += mw(font, wt + ' ') } }
+    else { g.fillStyle = rgb(jp('sFont', T) >= 1 ? TEXT : WHITE, a * 0.92); g.fillText(s, x0, yy) }
+    const job = ID['ly' + i]
+    if (job && T >= job.t0 && T < job.t1 + 0.4) { const cw = mw(font, s); if ((T * 2.5) % 1 < 0.6) { g.fillStyle = rgb(SKY, a); g.fillRect(x0 + cw + 2, yy - 15, 2, 30) } if (comp) { const lw = mw(font, s.slice(-1)); g.fillStyle = rgb(SKY, a); g.fillRect(x0 + cw - lw, yy + 16, lw, 2) } }
+  }
+  const lang = subLang(T)
+  if (lang) { const i = Math.round(p), t = X2.i18n[lang][i], yy = lyY(i, T) + 31, f = `24px ${FONT_ALL}`; g.font = f; g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillStyle = rgb(SKYL, 0.9 * A); g.fillText(t, fx(490), yy); g.textAlign = 'left' }
+  g.restore()
+}
+
+// ── 막대 · 아이콘 · 시간줄
+let BARS, ICW = []
+const barV = (T, k) => BARS[Math.min(D.bars.nf - 1, Math.max(0, Math.floor(T * 30))) * 48 + k] / 255
+function icRect(i) { const cx = fx(156 + (i + 0.5) * (669 / 7)), cy = fy(837), s = 58 * S; return [cx - s / 2, cy - s / 2, s, s] }
+function drawHUD(T, A) {
+  if (A <= 0) return
+  g.save(); g.globalAlpha = A
+  if (done('bars', T)) {
+    const n = Math.max(1, Math.round(48 * jp('dup', T))), fill = jp('sBarFill', T), cap = jp('sBarCap', T)
+    for (let i = 0; i < n; i++) {
+      const v = barV(T, i), hh = Math.max(2, v * 56) * S, x = fx(120 + i * 15), y = fy(976) - hh, w = 12 * S
+      if (fill > 0) { const gr = g.createLinearGradient(0, y, 0, fy(976)); gr.addColorStop(0, rgb(WHITE, fill)); gr.addColorStop(1, rgb(SKY, 0.35 * fill)); g.fillStyle = gr; g.fillRect(x, y, w, hh) }
+      g.strokeStyle = rgb(WHITE, 0.85 * (1 - fill * 0.6)); g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, w - 1, hh - 1)
+      if (cap > 0) { g.fillStyle = rgb(WHITE, cap); g.fillRect(x, y - 3 * S - 2, w, 2) }
+    }
+  }
+  if (done('icons', T)) for (let i = 0; i < 7; i++) {
+    const [x, y, w, h] = icRect(i), pop = EB(seg(T, ID.icons.t1 + i * 0.05, ID.icons.t1 + 0.3 + i * 0.05)), pul = done('midi', T) ? barV(T, [2, 6, 10, 18, 26, 34, 40][i]) * 0.14 : 0
+    g.save(); g.translate(x + w / 2, y + h / 2); g.scale(pop * (1 + pul), pop * (1 + pul))
+    g.strokeStyle = rgb(SKY, 0.5); g.setLineDash([3, 3]); g.lineWidth = 1; g.beginPath(); g.arc(0, 0, w * 0.56, 0, 7); g.stroke(); g.setLineDash([])
+    const q = jp('ic' + i, T); if (q > 0 && ICW[i]) { g.save(); g.beginPath(); g.rect(-w / 2, -h / 2, w, h * q); g.clip(); g.drawImage(ICW[i], -w / 2, -h / 2, w, h); g.restore() }
+    g.restore()
+  }
+  if (done('time', T)) {
+    const x0 = fx(120), x1 = fx(837), y = fy(993), pq = T / END, sty = jp('sTime', T)
+    g.fillStyle = rgb(SKY, 0.35); g.fillRect(x0, y - 1, x1 - x0, 2); g.fillStyle = rgb(WHITE); g.fillRect(x0, y - 1, (x1 - x0) * pq, 2)
+    g.beginPath(); g.arc(x0 + (x1 - x0) * pq, y, 3.5, 0, 7); g.fill()
+    const m = Math.floor(T / 60), s = Math.floor(T % 60)
+    g.font = sty >= 1 ? `${20 * S + 2}px "Palatino Linotype", Palatino, serif` : `${12}px Consolas, monospace`; g.fillStyle = rgb(TEXT, 0.9); g.textAlign = 'right'; g.fillText(`${m}:${String(s).padStart(2, '0')} / 2:37`, x1, fy(1010)); g.textAlign = 'left'
+    if (done('play', T)) { const cx = fx(478), cy = fy(1016); g.beginPath(); g.moveTo(cx - 4, cy - 6); g.lineTo(cx + 6, cy); g.lineTo(cx - 4, cy + 6); g.closePath(); g.fillStyle = rgb(WHITE, 0.9); g.fill() }
+  }
+  g.restore()
+}
+
+// ── 겨울 디테일(눈 · 입김 · 새싹 빛 · 창 빛 · 그림자 · 3D 빛 지나감)
+const SNOW = (() => { const r = mulberry(77); return Array.from({ length: 300 }, () => ({ x: r() * W, y: r() * H, v: 14 + r() * 26, ph: r() * 6.28, s: 0.8 + r() * 1.6 })) })()
+let BREATH = [], HATCH
+function drawWinter(T, A) {
+  if (A <= 0) return
+  g.save(); g.globalAlpha = A
+  const sq = jp('sSnow', T), sq2 = jp('snow2', T); if (sq > 0) { g.fillStyle = rgb(WHITE, 0.75); SNOW.forEach((p, i) => { if (i > 140 * sq + 160 * sq2) return; const y = (p.y + p.v * T) % (H + 10) - 5, x = p.x + Math.sin(T * 0.6 + p.ph) * 7; g.beginPath(); g.arc(F.x + x, F.y + y, p.s, 0, 7); g.fill() }) }
+  if (done('sBreath', T) && BREATH.length) for (let k = 0; k < 20; k++) { const t0 = 9 + 14 * k; if (t0 < ID.sBreath.t1) continue; const u = T - t0; if (u < 0 || u >= 80 / 13.75) continue; const im = BREATH[Math.min(79, Math.floor(u * 13.75))]; if (im) g.drawImage(im, fx(545), fy(156), 827 * S, 413 * S) }
+  const sp = jp('sSprout', T); if (sp > 0) { const cx = fx(1001.7), cy = fy(885.7), b = barV(T, 3); g.strokeStyle = rgb(SKY, 0.6 * sp); g.lineWidth = 1.5; for (let r = 0; r < 3; r++) { g.beginPath(); g.arc(cx, cy, (14 + r * 9) * (1 + b * 0.5), 0, 7); g.globalAlpha = A * sp * (0.7 - r * 0.2); g.stroke() } g.globalAlpha = A }
+  const lq = 0
+  if (lq > 0) { const L = lightDir(T), az = Math.atan2(L[2], L[0]), lx = F.x + W * clamp(0.5 - Math.cos(az) * 0.42), ly = F.y + H * 0.28; const gr = g.createRadialGradient(lx, ly, 10, lx, ly, 380); gr.addColorStop(0, rgb(SKYL, 0.32 * lq)); gr.addColorStop(1, rgb(SKYL, 0)); g.fillStyle = gr; g.fillRect(F.x, F.y, W, H) }
+  const bk = seg(T, ID.bake.t1, ID.bake.t1 + 1.2)
+  if (bk > 0) { g.globalAlpha = A * bk; if (HATCH) g.drawImage(HATCH, F.x, F.y, W, H); const gr = g.createRadialGradient(fx(1730), fy(90), 10, fx(1730), fy(90), 230); gr.addColorStop(0, rgb(SKYL, 0.28 + 0.35 * jp('glowT', T))); gr.addColorStop(1, rgb(SKYL, 0)); g.fillStyle = gr; g.fillRect(F.x + 760, F.y, 360, 260 + 200 * jp('glowT', T)) }
+  g.restore()
+}
+
+// ── 선화 층(픽셀마다 그려지는 시각 · 1920 지도) + 2023 양(먼저 그렸다 지움)
+let LX, LT, LC, LR, lineImg, lc, lcg, SX, ST
+function buildLines(A, SM) {
+  const xs = [], ts = [], cs = [], rs = []
+  for (let i = 0; i < MW * MH; i++) {
+    const rv = A[i * 4]; if (!rv) continue
+    const r = rv >> 2, tr = rv & 3, key = r + '_' + (r === D.TITLE_REG ? 1 : tr), j = ID['p' + key]
+    const o = (A[i * 4 + 1] * 256 + A[i * 4 + 2]) / 65535, t = j ? j.t0 + (j.t1 - j.t0) * o : 1e9
+    xs.push(i); ts.push(t); rs.push(r); cs.push(r <= 2 || r === D.TITLE_REG ? 0 : tr)
+  }
+  LX = Int32Array.from(xs); LT = Float32Array.from(ts); LC = Uint8Array.from(cs); LR = Uint8Array.from(rs)
+  const sj = ID.oldSheep, sx = [], st = []
+  for (let i = 0; i < SHP.w * SHP.h; i++) { if (!SM[i * 4]) continue; const x = SHP.x + i % SHP.w, y = SHP.y + ((i / SHP.w) | 0); if (x >= MW || y >= MH) continue; sx.push(y * MW + x); st.push(sj.t0 + (sj.t1 - sj.t0) * (SM[i * 4 + 1] * 256 + SM[i * 4 + 2]) / 65535) }
+  SX = Int32Array.from(sx); ST = Float32Array.from(st)
+  lc = document.createElement('canvas'); lc.width = MW; lc.height = MH; lcg = lc.getContext('2d'); lineImg = lcg.createImageData(MW, MH)
+}
+const LCOL = [WHITE, SKY, [112, 170, 228], [80, 124, 185]]
+function drawLines(T, A) {
+  if (A <= 0) return
+  const d = lineImg.data; d.fill(0)
+  const pan = jp('sPanel', T), gz = ZN.green, le = ID.legErase, ld = ID.legDraw, tone = toneAll(T)
+  // 2023 양: 그려짐 → 지우개가 쓸고 지나감
+  const oe = ID.oldErase, ex0 = SHP.x + SHP.w * E2(jp('oldErase', T)) * 1.05
+  if (T < oe.t1 + 0.1) for (let n = 0; n < SX.length; n++) { const t = ST[n]; if (t > T) continue; const i = SX[n], x = i % MW; if (T >= oe.t0 && x < ex0) continue; const fr = clamp(1 - (T - t) / 0.22), k = i * 4; d[k] = lerp(232, 255, fr); d[k + 1] = lerp(226, 255, fr); d[k + 2] = lerp(214, 255, fr); d[k + 3] = 235 }
+  // 다리: 잘못 나온 모양(짧고 넓게) → 고침 요청 · 지움 → 다시 그림
+  const lcx = (LEGSM[0] + LEGSM[2]) / 2, ltop = LEGSM[1]
+  for (let n = 0; n < LX.length; n++) {
+    const t = LT[n]; if (t > T) continue
+    let i = LX[n], x = i % MW, y = (i / MW) | 0
+    if (LR[n] === 2 && x >= LEGSM[0] && x <= LEGSM[2] && y >= LEGSM[1] && y <= LEGSM[3]) {
+      if (T < le.t0) { x = Math.round(lcx + (x - lcx) * 1.22); y = Math.round(ltop + (y - ltop) * 0.68); if (x < 0 || x >= MW) continue; i = y * MW + x }
+      else {
+        const ex = LEGSM[0] - 60 + (LEGSM[2] - LEGSM[0] + 140) * jp('legErase', T)
+        const back = ld.t0 + (ld.t1 - ld.t0) * ((y - LEGSM[1]) / (LEGSM[3] - LEGSM[1]) * 0.7 + (x - LEGSM[0]) / (LEGSM[2] - LEGSM[0]) * 0.3)
+        if (T < le.t1) { const wx = Math.round(lcx + (x - lcx) * 1.22), wy = Math.round(ltop + (y - ltop) * 0.68); if (wx > ex) { if (wx >= 0 && wx < MW) { const k = (wy * MW + wx) * 4; d[k] = 246; d[k + 1] = 242; d[k + 2] = 232; d[k + 3] = 235 } } continue }
+        if (T < back) continue
+      }
+    }
+    const c = LCOL[LC[n]], fr = clamp(1 - (T - t) / 0.22)
+    let a = 235 * (1 - 0.25 * tone)
+    if (pan > 0 && x >= gz[0] && x <= gz[2] && y >= gz[1] && y <= gz[3] && LR[n] > 2) a *= 1 - 0.55 * pan
+    const k = i * 4; d[k] = lerp(c[0], 255, fr); d[k + 1] = lerp(c[1], 255, fr); d[k + 2] = lerp(c[2], 255, fr); d[k + 3] = Math.min(255, a + fr * 40)
+  }
+  lcg.putImageData(lineImg, 0, 0); g.save(); g.globalAlpha = A; g.drawImage(lc, F.x, F.y, W, H); g.restore()
+}
+
+// ── 덩어리 칠(파란 명암 · 스포이트 채색) — 씨앗에서 번짐
+let FB, maskImg, mc, mcg, fc, fcg, TONE
+function maskedDraw(src, pr) {
+  if (pr.every(v => v <= 0)) return
+  if (pr.every(v => v >= 1)) { g.drawImage(src, F.x, F.y, W, H); return }
+  const d = maskImg.data
+  for (let i = 0; i < MW * MH; i++) { const k = i * 4, p = pr[FB[k]]; d[k + 3] = p <= 0 ? 0 : 255 * clamp((p * 1.12 - FB[k + 1] / 255) / 0.07) }
+  mcg.putImageData(maskImg, 0, 0)
+  fcg.globalCompositeOperation = 'source-over'; fcg.clearRect(0, 0, MW, MH); fcg.drawImage(src, 0, 0, MW, MH); fcg.globalCompositeOperation = 'destination-in'; fcg.drawImage(mc, 0, 0)
+  g.drawImage(fc, F.x, F.y, W, H)
+}
+const fillClick = k => { const j = ID['d' + k]; return j.t0 + 0.8 * (j.t1 - j.t0) }
+function fillProg(T) { const pr = new Float32Array(7); FILL_ORDER.forEach(([fid], k) => { pr[fid] = E2(seg(T, fillClick(k), fillClick(k) + 1.9)) }); const fin = E2(seg(T, fillClick(6), fillClick(6) + 1.3)); for (let i = 0; i < 7; i++) pr[i] = Math.max(pr[i], fin); return pr }
+function toneProg(T) { const pr = new Float32Array(7); TONE_ORDER.forEach(([fid], k) => { const j = ID['t' + k]; pr[fid] = E2(seg(T, j.t0, j.t1 + 0.5)) }); return pr }
+const toneAll = T => { const p = toneProg(T); let s = 0; for (const v of p) s += v; return s / 7 }
+
+// ── 3D 빛 분석(v8 · ◆작업자 「3D 광원 분석 연출 아쉬움」): 그림 선이 그대로 입체로 떠오름(점 구름) → 돌려 보며 빛을 끌면 두루 · 바닥의 밝은 쪽이 바뀜 → 다시 평면으로 → 그림자 층
+let CX, CY, CZ, CNX, CNY, CNZ, CK, cimg, cc, ccg, SH3, sh3
+function dec16(b) { const s = atob(b), a = new Int16Array(s.length / 2); for (let i = 0; i < a.length; i++) { let v = s.charCodeAt(2 * i) | (s.charCodeAt(2 * i + 1) << 8); if (v > 32767) v -= 65536; a[i] = v } return a }
+function view3(T) {
+  const lift = E3(seg(T, ID.gen.t1, ID.gen.t1 + 2.6)) * (1 - E3(seg(T, ID.bake.t0, ID.bake.t1 + 0.9))), oq = jp('orbit', T)
+  const pre = Math.sin(seg(T, ID.gen.t1, ID.orbit.t0) * Math.PI) * 0.3
+  return { yaw: (-Math.sin(oq * Math.PI * 2) * 1.0 + pre) * lift, pitch: (0.42 * Math.sin(oq * Math.PI) + 0.14) * lift, lift }
+}
+function lightDir(T) { const az = lerp(-2.5, -0.55, E2(jp('light', T))), el = 0.7; return [Math.cos(az) * Math.cos(el), -Math.sin(el), Math.sin(az) * Math.cos(el)] }
+function proj3(X, Y, Z, v) { const cy = Math.cos(v.yaw), sy = Math.sin(v.yaw), x1 = X * cy + Z * sy, z1 = -X * sy + Z * cy, cp = Math.cos(v.pitch), sp = Math.sin(v.pitch), y2 = Y * cp - z1 * sp, z2 = Y * sp + z1 * cp, f = 3.4 / (3.4 - z2); return [F.x + W / 2 + x1 * (H / 2) * f, F.y + H / 2 - y2 * (H / 2) * f, z2] }
+const LW = [1.37, 0.67, -0.75], LS = [0.08, -0.64, 0.35]          // 창 빛 · 새싹 빛(그림 속 실제 광원 자리)
+const kW = T => E2(jp('light', T)), kS = T => E2(jp('light2', T))
+function lightHandle(T, w) { const v = view3(T), p = w === 'w' ? LW : LS, s = proj3(p[0], p[1], p[2] * v.lift * 1.35, v), q = w === 'w' ? kW(T) : kS(T); return w === 'w' ? { x: s[0] - 130 * q, y: s[1] + 90 * q } : { x: s[0], y: s[1] - 70 * q } }
+function lightScreen(T) { return lightHandle(T, 'w') }
+function draw3D(T) {
+  const mq = jp('mesh', T), nShow = Math.floor(C3.n * clamp(0.1 + E2(mq) * 0.9))
+  // 왼쪽 칸: 생성 · 점 밀도 · 수 · 빛 방향 · 그림자 굽기 · 검사
+  const pA = seg(T, 56.3, 56.7) * (1 - seg(T, 71.6, 72.1))
+  if (pA > 0) {
+    panel([LP.x, LP.y, LP.w, 330], pA); g.save(); g.globalAlpha = pA; g.font = '14px "Malgun Gothic", sans-serif'
+    g.fillStyle = rgb(SKY, done('gen', T) ? 0.45 : 0.18); rr(I3.gen.x, I3.gen.y, I3.gen.w, I3.gen.h, 6); g.fill(); g.fillStyle = rgb(TEXT); g.fillText('생성', I3.gen.x + 32, I3.gen.y + 20)
+    g.fillStyle = rgb(SKY, 0.35); g.fillRect(I3.sl.x0, I3.sl.y - 1, I3.sl.x1 - I3.sl.x0, 3); g.fillStyle = rgb(WHITE); g.beginPath(); g.arc(lerp(I3.sl.x0, I3.sl.x1, E2(mq)), I3.sl.y, 7, 0, 7); g.fill()
+    g.font = '14px Consolas, "Malgun Gothic", monospace'; g.fillStyle = rgb(TEXT, 0.85)
+    g.fillText(`점 ${(T >= ID.gen.t1 ? nShow : 0).toLocaleString()} / ${C3.n.toLocaleString()}`, LP.x + 20, LP.y + 122)
+    if (T >= ID.light.t0) g.fillText(`창 빛 ${kW(T).toFixed(2)} · 새싹 빛 ${kS(T).toFixed(2)}`, LP.x + 20, LP.y + 150)
+    g.fillStyle = rgb(SKY, done('bake', T) ? 0.45 : 0.18); rr(I3.bake.x, I3.bake.y, I3.bake.w, I3.bake.h, 6); g.fill(); g.fillStyle = rgb(TEXT); g.font = '14px "Malgun Gothic", sans-serif'; g.fillText('그림자 굽기', I3.bake.x + 28, I3.bake.y + 20)
+    g.font = '15px Consolas, "Malgun Gothic", monospace'; for (let i = 0; i < 3; i++) { const j = ID['chk' + i]; if (T >= j.t0) { g.fillStyle = rgb(SKYL, 0.95); g.fillText(typed(j.text, jp('chk' + i, T))[0], j.x, j.y) } }
+    g.restore()
+  }
+  // 가운데: 선이 떠오른 점 구름
+  const ov = seg(T, ID.gen.t0, ID.gen.t1 + 0.4) * (1 - seg(T, ID.bake.t1 + 0.5, ID.bake.t1 + 1.4))
+  if (ov <= 0) return
+  const v = view3(T), L = lightDir(T), lit = seg(T, ID.light.t0 - 0.3, ID.light.t0 + 0.4) * (1 - seg(T, ID.bake.t0, ID.bake.t1 + 0.6))
+  const cyw = Math.cos(v.yaw), syw = Math.sin(v.yaw), cp = Math.cos(v.pitch), sp = Math.sin(v.pitch), HH = H / 2, kw = kW(T), ks = kS(T), lwz = LW[2] * v.lift * 1.35, lsz = LS[2] * v.lift * 1.35
+  const d = cimg.data; d.fill(0)
+  for (let i = 0; i < nShow; i++) {
+    const X = CX[i] / 1000, Y = CY[i] / 1000, Z = CZ[i] / 1000 * v.lift * 1.35
+    const x1 = X * cyw + Z * syw, z1 = -X * syw + Z * cyw, y2 = Y * cp - z1 * sp, z2 = Y * sp + z1 * cp, f = 3.4 / (3.4 - z2)
+    const sx = (W / 2 + x1 * HH * f) | 0, sy = (HH - y2 * HH * f) | 0
+    if (sx < 0 || sy < 0 || sx >= W - 1 || sy >= H - 1) continue
+    let b = 0.9; if (lit > 0) { const nx = CNX[i] / 1000, ny = CNY[i] / 1000, nz = CNZ[i] / 1000; let dx = LW[0] - X, dy = LW[1] - Y, dz = lwz - Z, dl = Math.hypot(dx, dy, dz); const dw = Math.max(0, (nx * dx + ny * dy + nz * dz) / dl) / (1 + dl * dl * 0.35); dx = LS[0] - X; dy = LS[1] - Y; dz = lsz - Z; dl = Math.hypot(dx, dy, dz); const ds = Math.max(0.15, (nx * dx + ny * dy + nz * dz) / dl) / (1 + dl * dl * 5); b = lerp(0.9, 0.42 + kw * 1.4 * dw + ks * 1.8 * ds, lit) }
+    const c = CK[i] === 1 ? WHITE : CK[i] === 2 ? SKYL : SKY, R = Math.min(255, c[0] * b), G = Math.min(255, c[1] * b), B = Math.min(255, c[2] * b)
+    for (const o of [0, 4, W * 4, W * 4 + 4]) { const k = (sy * W + sx) * 4 + o; d[k] = R; d[k + 1] = G; d[k + 2] = B; d[k + 3] = 235 }
+  }
+  ccg.putImageData(cimg, 0, 0)
+  g.save(); g.beginPath(); g.rect(F.x, F.y, W, H); g.clip()
+  g.globalAlpha = ov * 0.7; g.fillStyle = '#080C1C'; g.fillRect(F.x, F.y, W, H)
+  g.globalAlpha = ov; g.drawImage(cc, F.x, F.y)
+  // 창 빛(틀이 빛나고 빛줄기가 두루 · 바닥으로) · 새싹 빛(둥근 번짐) · 끄는 손잡이
+  if (T >= ID.light.t0 - 0.6) {
+    const kw = kW(T), ks = kS(T), la = ov * seg(T, ID.light.t0 - 0.6, ID.light.t0), cz = LW[2] * v.lift * 1.35
+    const cn = [[1.0, 0.36], [1.78, 0.36], [1.78, 1.0], [1.0, 1.0]].map(([X, Y]) => proj3(X, Y, cz, v))
+    g.globalAlpha = la; g.fillStyle = rgb(SKYL, 0.1 + 0.3 * kw); g.strokeStyle = rgb(WHITE, 0.45 + 0.5 * kw); g.lineWidth = 2; g.beginPath(); cn.forEach((q, k) => k ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])); g.closePath(); g.fill(); g.stroke()
+    for (const [X, Y, Z, u, w] of [[0.7, 0.2, 0.5, 0.2, 0.3], [0.95, -0.1, 0.6, 0.5, 0.6], [1.15, -0.5, 0.3, 0.8, 0.2], [0.45, -0.55, 0.6, 0.1, 0.8], [1.4, -0.75, 0.9, 0.9, 0.5]]) { const a = proj3(1.0 + 0.78 * u, 0.36 + 0.64 * w, cz, v), b = proj3(X, Y, Z * v.lift * 1.35, v), gr = g.createLinearGradient(a[0], a[1], b[0], b[1]); gr.addColorStop(0, rgb(SKYL, 0.55 * kw)); gr.addColorStop(1, rgb(SKYL, 0)); g.strokeStyle = gr; g.lineWidth = 3; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke() }
+    const sp3 = proj3(LS[0], LS[1], LS[2] * v.lift * 1.35, v), rs = 22 + 80 * ks, gs = g.createRadialGradient(sp3[0], sp3[1], 0, sp3[0], sp3[1], rs); gs.addColorStop(0, rgb(WHITE, 0.3 + 0.7 * ks)); gs.addColorStop(1, rgb(SKYL, 0)); g.fillStyle = gs; g.fillRect(sp3[0] - rs, sp3[1] - rs, rs * 2, rs * 2)
+    for (const w of ['w', 's']) { const h = lightHandle(T, w); g.fillStyle = rgb(WHITE); g.beginPath(); g.arc(h.x, h.y, 7, 0, 7); g.fill(); g.strokeStyle = rgb(SKYL); g.lineWidth = 1.5; g.beginPath(); g.arc(h.x, h.y, 12, 0, 7); g.stroke() }
+    g.globalAlpha = 1
+  }
+  g.restore()
+}
+
+// ── 타자 칸(지시 → HUD) · 다듬기 · 고침 요청 동그라미
+function drawTypeJobs(T) {
+  for (const j of J) {
+    if (j.k !== 'type' || j.gen === false || T < j.t0) continue
+    const fade = j.fade ? 1 - seg(T, j.t1 + j.fade - 0.4, j.t1 + j.fade) : 1 - seg(T, j.t1 + 2.0, j.t1 + 2.6); if (fade <= 0) continue
+    const [s, comp] = typed(j.text, jp(j.id, T))
+    g.save(); g.globalAlpha = fade; g.font = j.font
+    if (j.box) { const w = Math.max(90, mw(j.font, j.text) + 22); g.fillStyle = 'rgba(8,12,28,0.88)'; rr(j.x - 10, j.y - 19, w, 28, 5); g.fill(); g.strokeStyle = rgb(SKY, 0.6); g.lineWidth = 1; g.stroke() }
+    g.fillStyle = rgb(SKYL); g.fillText(s, j.x, j.y)
+    const cw = mw(j.font, s); if (T < j.t1 + 0.4 && (T * 2.5) % 1 < 0.6) g.fillRect(j.x + cw + 2, j.y - 15, 2, 19)
+    if (comp) { const lw = mw(j.font, s.slice(-1)); g.fillRect(j.x + cw - lw, j.y + 4, lw, 1.5) }
+    g.restore()
+  }
+}
+function drawNudges(T) {
+  for (const j of J) {
+    if (j.k !== 'nudge' || T < j.t0 || T > j.t1 + 0.25) continue
+    // v6: 모서리 꺾쇠만(검증단 2차: 점선 상자가 화면을 어지럽힘)
+    const [x, y, w, h] = j.an.r, a = 0.5 * (1 - seg(T, j.t1, j.t1 + 0.25)), q = jp_(j, T), gx = j.v === 2 ? 4 * E2(q) : 0, L = 10
+    g.save(); g.globalAlpha = a; g.strokeStyle = rgb(SKYL, 0.9); g.lineWidth = 1.5
+    const x0 = x - 4 - gx, y0 = y - 4 - gx, x1 = x + w + 4 + gx, y1 = y + h + 4 + gx
+    g.beginPath(); g.moveTo(x0, y0 + L); g.lineTo(x0, y0); g.lineTo(x0 + L, y0); g.moveTo(x1 - L, y0); g.lineTo(x1, y0); g.lineTo(x1, y0 + L); g.moveTo(x1, y1 - L); g.lineTo(x1, y1); g.lineTo(x1 - L, y1); g.moveTo(x0 + L, y1); g.lineTo(x0, y1); g.lineTo(x0, y1 - L); g.stroke()
+    g.restore()
+  }
+}
+function drawRing(id, T, until) { const j = ID[id], q = jp(id, T); if (q <= 0 || T > until + 0.6) return; g.save(); g.globalAlpha = 1 - seg(T, until, until + 0.6); g.strokeStyle = RED; g.lineWidth = 4; g.beginPath(); g.ellipse(j.cx, j.cy, j.rx, j.ry, 0, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2.1 * q); g.stroke(); if (q >= 1) { const s = 14; g.lineWidth = 3; g.beginPath(); g.moveTo(j.cx + j.rx - s, j.cy - j.ry); g.lineTo(j.cx + j.rx + s, j.cy - j.ry + 2 * s); g.moveTo(j.cx + j.rx + s, j.cy - j.ry); g.lineTo(j.cx + j.rx - s, j.cy - j.ry + 2 * s); g.stroke() } g.restore() }
+
+// ── 왼쪽 · 오른쪽 작업 공간(이름표 없음)
+function panel(R, a) { if (a <= 0) return; g.save(); g.globalAlpha = a; g.fillStyle = 'rgba(14,18,32,0.9)'; rr(R[0], R[1], R[2], R[3], 10); g.fill(); g.strokeStyle = rgb(SKY, 0.28); g.lineWidth = 1; g.stroke(); g.restore() }
+let THC = [], STICK, TPS = []
+function drawSides(T) {
+  // 오른쪽 메모장(GPT 표현 사전) → 낱말 하나를 가사.txt 로
+  const mA = seg(T, 12.0, 12.4) * (1 - seg(T, 18.4, 18.8))
+  if (mA > 0) { panel([RP.x, RP.y, RP.w, 380], mA); g.save(); g.globalAlpha = mA; MEMO.forEach((w, i) => { const j = ID['m' + i]; if (T < j.t0) return; g.font = j.font; g.fillStyle = rgb(TEXT, i === 5 && T >= ID.memoDrag.t0 ? 0.35 : 0.92); g.fillText(typed(w, jp(j.id, T))[0], j.x, j.y) }); g.restore() }
+  if (T >= ID.memoDrag.t0 && T < ID.memoDrag.t1 + 0.2) { const p = jpos(ID.memoDrag, jp('memoDrag', T), T); g.save(); g.font = '20px "Malgun Gothic"'; g.fillStyle = 'rgba(8,12,28,0.9)'; rr(p.x - 10, p.y - 26, mw('20px "Malgun Gothic"', MEMO[5]) + 20, 32, 6); g.fill(); g.strokeStyle = rgb(SKYL, 0.8); g.stroke(); g.fillStyle = rgb(SKYL); g.fillText(MEMO[5], p.x, p.y - 4); g.restore() }
+  // 왼쪽 가사.txt: 초안(마지막 줄 GPT 판) → 낱말 반영 · 마지막 줄 고침 → 붙여넣기 → 맞춤(받아쓰기 오류 고침)
+  const eA = seg(T, 16.3, 16.7) * (1 - seg(T, 25.2, 25.6))
+  if (eA > 0) {
+    panel([LP.x, LP.y, LP.w, LP.h], eA); g.save(); g.globalAlpha = eA
+    if (T >= ID.align.t0) { g.font = ID.align.font; g.fillStyle = rgb(SKYL); g.fillText(typed(ID.align.text, jp('align', T))[0], ID.align.x, ID.align.y) }
+    const aq = seg(T, ID.align.t1, ID.align.t1 + 1.2), hl = seg(T, ID.memoDrag.t1, ID.memoDrag.t1 + 0.2) * (1 - seg(T, ID.memoDrag.t1 + 0.9, ID.memoDrag.t1 + 1.3))
+    g.font = '13px "Malgun Gothic", sans-serif'
+    for (let i = 0; i < LY.length; i++) {
+      const y = EDL(i); let s = LY[i].text, col = rgb(TEXT, 0.85)
+      if (i === 29 && hl > 0) { g.fillStyle = rgb(SKY, 0.25 * hl); g.fillRect(LP.x + 44, y - 13, 250, 17) }
+      if (i === 31) { if (T < ID.lastType.t0) s = '봄이 자리를 잡았어요'; else s = typed(ID.lastType.text, jp('lastType', T))[0] }
+      if ((i === 16 || i === 19) && aq * 32 > i && T < ID['fix' + (i === 16 ? 0 : 1)].t1) { col = '#FF7A6E'; s = i === 16 ? '홈을 이야기하는 목소리' : '다음 영상에서 만나요.' }
+      g.fillStyle = col; g.fillText(s, LP.x + 50, y)
+      if (i === 31 && T >= ID.lastStrike.t0 && T < ID.lastType.t0) { g.strokeStyle = RED; g.lineWidth = 2; g.beginPath(); g.moveTo(LP.x + 48, y - 5); g.lineTo(LP.x + 48 + 160 * jp('lastStrike', T), y - 5); g.stroke() }
+      if (aq * 32 > i) { g.fillStyle = rgb(SKY, 0.7); g.fillText(`${(LY[i].t0).toFixed(2)}`, LP.x + 300, y) }
+    }
+    g.restore()
+  }
+  // 왼쪽 자막 12개 언어(지금 가사 줄의 실제 번역) — 끌어 넣은 줄은 ✓
+  const uA = seg(T, 95.8, 96.2) * (1 - seg(T, 114.8, 115.4))
+  if (uA > 0) { panel([LP.x, LP.y, LP.w, LP.h], uA); g.save(); g.globalAlpha = uA; const li = Math.round(lyricP(T)); LANGS.forEach((lg, i) => { const y = SUBY(i), on = i === 0 || done('sub' + i, T), moving = i > 0 && T >= ID['sub' + i].t0 && T < ID['sub' + i].t1; g.globalAlpha = uA * (moving ? 0.35 : 1); g.font = '12px Consolas, monospace'; g.fillStyle = on ? rgb(SKYL) : rgb(TEXT, 0.5); g.fillText((on ? '✓ ' : '· ') + lg, LP.x + 16, y - 8); g.font = `16px ${FONT_ALL}`; g.fillStyle = rgb(TEXT, on ? 0.92 : 0.55); const t = X2.i18n[lg][li]; g.fillText(t.length > 30 ? t.slice(0, 29) + '…' : t, LP.x + 16, y + 12) }); g.restore()
+    for (let i = 1; i < 12; i++) { const j = ID['sub' + i]; if (T < j.t0 || T >= j.t1) continue; const p = jpos(j, jp_(j, T), T), f = `16px ${FONT_ALL}`, t = X2.i18n[j.lang][li_(T)]; g.save(); g.font = f; g.fillStyle = 'rgba(8,12,28,0.9)'; rr(p.x - 8, p.y - 24, mw(f, t) + 16, 30, 6); g.fill(); g.strokeStyle = rgb(SKYL, 0.8); g.stroke(); g.fillStyle = rgb(SKYL); g.fillText(t, p.x, p.y - 4); g.restore() } }
+  // 물감(채색 직전)
+  const pA = seg(T, 112.2, 112.6) * (1 - seg(T, 131.5, 132.5))
+  if (pA > 0) { g.save(); g.globalAlpha = pA; D.fills.forEach((f, i) => { const p = PAL(i), pop = EB(seg(T, ID['pal' + i].t0 + 0.1, ID['pal' + i].t1 + 0.15)); g.strokeStyle = rgb(WHITE, 0.6); g.lineWidth = 1.2; g.beginPath(); g.arc(p.x, p.y, 18, 0, 7); g.stroke(); if (pop > 0) { g.fillStyle = rgb(f.rgb); g.beginPath(); g.arc(p.x, p.y, 16 * pop, 0, 7); g.fill() } }); g.restore() }
+  // 끝: 왼쪽 설명란(AI 사용 표기) · 오른쪽 썸네일 고르기 → 공개
+  const dA = seg(T, 133.3, 133.7) * (1 - seg(T, 151.6, 152.2))
+  if (dA > 0) { panel([LP.x, LP.y, LP.w, 340], dA); g.save(); g.globalAlpha = dA; DESC.forEach((s, i) => { const j = ID['desc' + i]; if (T < j.t0) return; const [t, comp] = typed(j.text, jp(j.id, T)); g.font = j.font; g.fillStyle = rgb(i ? TEXT : SKYL, 0.95); g.fillText(t, j.x, j.y); if (T < j.t1 + 0.3) { const cw = mw(j.font, t); if ((T * 2.5) % 1 < 0.6) { g.fillStyle = rgb(SKY); g.fillRect(j.x + cw + 2, j.y - 16, 2, 20) } if (comp) { const lw = mw(j.font, t.slice(-1)); g.fillStyle = rgb(SKY); g.fillRect(j.x + cw - lw, j.y + 4, lw, 2) } } }); g.restore() }
+  const tA = seg(T, 134.4, 134.8) * (1 - seg(T, 151.6, 152.2))
+  if (tA > 0) { panel([RP.x, RP.y, RP.w, LP.h], tA); g.save(); g.globalAlpha = tA; let cur = -1; for (let i = 0; i < 6; i++) if (T >= ID['th' + i].t0) cur = i; if (done('thPick', T)) cur = 0
+    THC.forEach((im, i) => { const p = THP(i); if (im) g.drawImage(im, p.x, p.y, 160, 90); g.strokeStyle = i === cur ? rgb(SKYL) : rgb(SKY, 0.3); g.lineWidth = i === cur ? 3 : 1; g.strokeRect(p.x, p.y, 160, 90) })
+    drawRing('thRing', T, ID.thPick.t0)
+    const q = jp('publish', T); g.fillStyle = q > 0.5 ? rgb(SKYL) : rgb(TEXT, 0.9); rr(RP.x + 120, RP.y + 566, 120, 34, 8); g.fill(); g.fillStyle = '#0a0d18'; g.font = 'bold 16px "Malgun Gothic"'; g.fillText(q > 0.5 ? '공개됨' : '공개', RP.x + (q > 0.5 ? 156 : 164), RP.y + 589); g.restore() }
+}
+const li_ = T => Math.round(lyricP(T))
+
+// ── 아래: SUNO 악기 10줄(곡 전체 · 재생선 = 지금 시각) · 끝에 렌더가 지나감
+function drawLanes(T, A) {
+  if (A <= 0) return
+  g.save(); g.globalAlpha = A
+  const hx = LANE.x + LANE.w * T / END, cw = LANE.w / D.COLS
+  D.lanes.forEach((ln, i) => {
+    const y = LANE.y0 + i * LANE.lh + LANE.lh / 2, q = i / 9
+    g.font = '15px "Malgun Gothic", sans-serif'; g.fillStyle = rgb(TEXT, 0.62); g.textAlign = 'right'; g.fillText(ln.ko, LANE.x - 12, y + 5); g.textAlign = 'left'
+    g.fillStyle = rgb(SKY, 0.035); g.fillRect(LANE.x, y - 13, LANE.w, 26)
+    g.fillStyle = `rgba(${lerp(SKY[0], TEXT[0], q)},${lerp(SKY[1], TEXT[1], q)},${lerp(SKY[2], TEXT[2], q)},0.55)`
+    for (let c = 0; c < D.COLS; c++) { const x = LANE.x + c * cw; if (x > hx) break; const a = ln.pk[c] * 12; if (a > 0.3) g.fillRect(x, y - a, cw, a * 2) }
+  })
+  g.strokeStyle = rgb(TEXT); g.lineWidth = 2; g.beginPath(); g.moveTo(hx, LANE.y0 - 4); g.lineTo(hx, LANE.y0 + 10 * LANE.lh); g.stroke()
+  if (T >= ID.render.t0 - 0.5) { const q = jp('render', T), pr = seg(T, ID.render.t1 + 0.2, 141.8); g.fillStyle = q > 0.5 ? rgb(SKYL) : rgb(TEXT, 0.85); rr(LANE.x + LANE.w - 92, LANE.y0 - 36, 92, 26, 6); g.fill(); g.fillStyle = '#0a0d18'; g.font = 'bold 13px "Malgun Gothic"'; g.fillText('렌더', LANE.x + LANE.w - 60, LANE.y0 - 18)
+    if (pr > 0) { g.fillStyle = rgb(SKYL, 0.13); g.fillRect(LANE.x, LANE.y0 - 2, LANE.w * pr, 10 * LANE.lh + 4); g.fillStyle = rgb(SKYL); g.fillRect(LANE.x + LANE.w * pr - 1, LANE.y0 - 2, 2, 10 * LANE.lh + 4); g.font = '13px Consolas'; g.fillStyle = rgb(TEXT, 0.85); g.fillText(`${Math.round(pr * 4736)} / 4736`, LANE.x + LANE.w - 200, LANE.y0 - 18) } }
+  g.restore()
+}
+
+// ── 끝: 고정 댓글(댓글 칸에 쳐서 → 고정 누르면 고정됨)
+function drawComment(T) {
+  const a = seg(T, 148.6, 149.1); if (a <= 0) return
+  const pin = E2(seg(T, ID.cmPin.t0 + 0.15, ID.cmPin.t1 + 0.25)), pop = 1 + 0.035 * Math.sin(seg(T, ID.cmPin.t1, ID.cmPin.t1 + 0.5) * Math.PI)
+  const { x, y, w, h } = CM
+  g.save(); g.globalAlpha = a; g.translate(x + w / 2, y + h / 2); g.scale(pop, pop); g.translate(-(x + w / 2), -(y + h / 2))
+  g.fillStyle = 'rgba(14,18,32,0.94)'; rr(x, y, w, h, 12); g.fill(); g.strokeStyle = pin > 0 ? rgb(SKYL, 0.4 + 0.5 * pin) : rgb(SKY, 0.35); g.lineWidth = 1.2 + pin; g.stroke()
+  // 프로필(두루 선화) · 채널 이름
+  g.save(); g.beginPath(); g.arc(x + 42, y + h / 2, 24, 0, 7); g.fillStyle = '#1a2036'; g.fill(); g.clip(); if (STICK) g.drawImage(STICK, x + 16, y + h / 2 - 26, 52, 52); g.restore()
+  g.font = '13px "Malgun Gothic", sans-serif'; g.fillStyle = rgb(TEXT, 0.6); g.fillText('아낌없이 주는 두루', x + 84, y + 22)
+  if (pin > 0) { g.globalAlpha = a * pin; const px = x + 84 + mw('13px "Malgun Gothic", sans-serif', '아낌없이 주는 두루') + 14, py = y + 17 - 6 * (1 - pin); g.fillStyle = rgb(SKYL); g.beginPath(); g.arc(px + 5, py - 1, 4.5, 0, 7); g.fill(); g.fillRect(px + 4, py + 2, 2, 8); g.font = '12px "Malgun Gothic", sans-serif'; g.fillText('고정됨', px + 16, py + 4); g.globalAlpha = a }
+  // 본문(친 만큼) · 커서 막대
+  const [s, comp] = typed(CM.text, jp('cmType', T)), f = '24px "Malgun Gothic", sans-serif'
+  g.font = f; g.fillStyle = rgb(TEXT, 0.96); g.fillText(s, x + 84, y + 52)
+  if (T < ID.cmType.t1 + 0.5 && T >= ID.cmClick.t1) { const cw = mw(f, s); if ((T * 2.5) % 1 < 0.6) { g.fillStyle = rgb(SKY); g.fillRect(x + 84 + cw + 2, y + 30, 2, 28) } if (comp) { const lw = mw(f, s.slice(-1)); g.fillStyle = rgb(SKY); g.fillRect(x + 84 + cw - lw, y + 58, lw, 2) } }
+  // 고정 단추
+  if (pin < 1) { g.globalAlpha = a * (1 - pin); g.fillStyle = jp('cmPin', T) > 0.4 ? rgb(SKYL) : rgb(SKY, 0.3); rr(x + w - 100, y + 22, 76, 30, 8); g.fill(); g.fillStyle = jp('cmPin', T) > 0.4 ? '#0a0d18' : rgb(TEXT); g.font = 'bold 14px "Malgun Gothic", sans-serif'; g.fillText('고정', x + w - 78, y + 42) }
+  g.restore()
+}
+
+// ── 한 장면 그리기
+const loadImg = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = src })
+const frSrc = T => { const n = Math.min(D.finalN || 1, Math.max(1, Math.round(T * 30) + 1)); return '../build/final/f' + String(n).padStart(5, '0') + '.jpg' }
+async function render(T) {
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1
+  g.fillStyle = '#080C1C'; g.fillRect(0, 0, 1920, 1080)
+  const pr = fillProg(T), anyFill = pr.some(v => v > 0)
+  const FR = anyFill || T > 131 ? await loadImg(frSrc(T)) : null
+  if (T >= FULL) { g.drawImage(FR, 0, 0, 1920, 1080); return }
+  const cam = camAt(T), zoom = E3(seg(T, OUT0, FULL)), uiA = 1 - seg(T, 146.2, 147.0)
+  g.setTransform(cam.s, 0, 0, cam.s, 960 - cam.cx * cam.s, 540 - cam.cy * cam.s)
+  g.fillStyle = rgb(TEXT, 0.035); for (let y = -280; y < 1360; y += 32) for (let x = -480; x < 2400; x += 32) g.fillRect(x, y, 2, 2)
+  const fp = E2(jp('frame', T))
+  if (fp > 0) {
+    g.save(); g.beginPath(); g.rect(F.x, F.y, W * fp, H * fp); g.clip()
+    g.fillStyle = '#0B1022'; g.fillRect(F.x, F.y, W, H)
+    if (TONE) maskedDraw(TONE, toneProg(T))
+    const pan = jp('sPanel', T); if (pan > 0) { const [x, y, w, h] = zr('green'); g.fillStyle = `rgba(20,22,28,${0.55 * pan})`; g.fillRect(x, y, w, h) }
+    const lineA = 1 - seg(T, fillClick(6) + 0.6, fillClick(6) + 1.6)
+    drawLines(T, lineA)
+    for (const j of J) if ((j.k === 'draw' || j.k === 'sdraw') && T >= j.t0 && T < j.t1) { const q = (T - j.t0) / (j.t1 - j.t0), p = j.k === 'sdraw' ? sheepPen(q) : penAt(j.piece, q), x = F.x + p[0] * K, y = F.y + p[1] * K; const gr = g.createRadialGradient(x, y, 0, x, y, 16); gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.35, rgb(SKYL, 0.45)); gr.addColorStop(1, rgb(SKYL, 0)); g.fillStyle = gr; g.fillRect(x - 16, y - 16, 32, 32); g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(x - 9, y); g.lineTo(x + 9, y); g.moveTo(x, y - 9); g.lineTo(x, y + 9); g.stroke() }
+    drawWinter(T, lineA)
+    const tA = (T < ID.p15_1.t0 - 0.2 ? 1 : 0) * lineA                // 손글씨로 바뀔 때 = 글자가 점으로 흩어져 손글씨 선 자리로(아래)
+    if (tA > 0) { g.save(); g.globalAlpha = tA; const a = ID.tt1, b = ID.tt2; g.font = a.font; g.fillStyle = rgb(WHITE, 0.9); g.fillText(typed(a.text, jp('tt1', T))[0], a.x, a.y); g.font = b.font; g.fillText(typed(b.text, jp('tt2', T))[0], b.x, b.y)
+      for (const j of [a, b]) if (T >= j.t0 && T < j.t1 + 0.4) { const [s, comp] = typed(j.text, jp(j.id, T)), cw = mw(j.font, s); if ((T * 2.5) % 1 < 0.6) { g.fillStyle = rgb(SKY); g.fillRect(j.x + cw + 2, j.y - (j === b ? 30 : 14), 2, j === b ? 34 : 17) } if (comp) { const lw = mw(j.font, s.slice(-1)); g.fillStyle = rgb(SKY); g.fillRect(j.x + cw - lw, j.y + 5, lw, 2) } }
+      g.restore() }
+    if (T >= ID.p15_1.t0 - 0.2 && T < ID.p15_1.t1 + 1.3 && TPS.length) { g.save(); g.fillStyle = rgb(WHITE); for (const q of TPS) { const u = E3(seg(T, q.s, q.s + 1.1)); if (u >= 1) continue; g.globalAlpha = 0.95 - u * 0.6; g.fillRect(lerp(q.x0, q.x1, u) - 1, lerp(q.y0, q.y1, u) - Math.sin(u * Math.PI) * 28 - 1, 2.2, 2.2) } g.restore() }
+    if (FR) maskedDraw(FR, pr)
+    const hudA = 1 - seg(T, fillClick(6) + 0.2, fillClick(6) + 1.2)
+    const unc = 1 - pr[0]; drawHUD(T, hudA * unc); drawLyrics(T, hudA * unc)     // 색이 왼쪽 칸(밤하늘 덩어리)에 번지면 원래 가사 · HUD 로 넘김
+    const zA = (1 - 0.7 * seg(T, 40, 44)) * hudA
+    ;[['green', 'zg'], ['yellow', 'zy'], ['blue', 'zb'], ['red', 'zr'], ['tl', 'zt']].forEach(([k, id]) => { const q = E2(jp(id, T)); if (q <= 0) return; const [x, y, w, h] = zr(k); g.save(); g.globalAlpha = zA * (k === 'tl' ? 0.7 : 1); g.strokeStyle = ZC[k]; g.setLineDash([7, 5]); g.lineWidth = 1.4; g.strokeRect(x, y, w * q, h * q); g.restore() })
+    drawRing('ringOld', T, ID.oldErase.t1); drawRing('legRing', T, ID.legDraw.t1)
+    // 고침 요청의 기준 그림 카드(지금 두루 선화) → 화살표로 잘못 나온 그림을 가리킴
+    const rq = jp('refDrag', T), rA = seg(T, ID.refDrag.t0, ID.refDrag.t0 + 0.2) * (1 - seg(T, 6.2, 6.8))
+    if (rA > 0 && STICK) { const p = rq < 1 ? jpos(ID.refDrag, rq, T) : { x: REF.x + REF.s / 2, y: REF.y + REF.s / 2 }, s = lerp(150, REF.s, E2(rq)); g.save(); g.globalAlpha = rA; g.fillStyle = 'rgba(8,12,28,0.92)'; rr(p.x - s / 2, p.y - s / 2, s, s, 10); g.fill(); g.strokeStyle = rgb(SKYL, 0.8); g.lineWidth = 2; g.stroke(); g.drawImage(STICK, p.x - s / 2 + 8, p.y - s / 2 + 8, s - 16, s - 16)
+      if (rq >= 1) { const ax = REF.x + REF.s + 10, ay = REF.y + REF.s / 2, bx = SHC.x - SHC.rx - 8, aq = E2(seg(T, ID.refDrag.t1, ID.refDrag.t1 + 0.35)); g.strokeStyle = RED; g.lineWidth = 3; g.beginPath(); g.moveTo(bx, ay); g.lineTo(lerp(bx, ax, aq), ay); g.stroke(); if (aq >= 1) { g.beginPath(); g.moveTo(ax + 12, ay - 9); g.lineTo(ax, ay); g.lineTo(ax + 12, ay + 9); g.stroke() } }
+      g.restore() }
+    g.restore()
+    g.strokeStyle = rgb(TEXT, 0.55 * uiA); g.lineWidth = 1.2; g.strokeRect(F.x + .5, F.y + .5, W * fp, H * fp)
+  }
+  if (uiA > 0) { g.save(); g.globalAlpha = uiA; drawTypeJobs(T); drawNudges(T); draw3D(T); drawSides(T); drawLanes(T, 1); g.restore() }
+  if (fp > 0 && uiA < 1) { g.save(); g.strokeStyle = rgb(TEXT, 0.35); g.lineWidth = 1.2; g.strokeRect(F.x + .5, F.y + .5, W, H); g.restore(); drawNudges(T) }   // 화면 가득일 때도 다듬기 표시
+  drawComment(T)
+  for (let c = 0; c < 7; c++) drawCursor(cursorAt(c, T))
+  if (zoom > 0 && FR) { g.setTransform(1, 0, 0, 1, 0, 0); const sx = 960 - cam.cx * cam.s + F.x * cam.s, sy = 540 - cam.cy * cam.s + F.y * cam.s; g.drawImage(FR, lerp(sx, 0, zoom), lerp(sy, 0, zoom), lerp(W * cam.s, 1920, zoom), lerp(H * cam.s, 1080, zoom)) }
+}
+
+;(async () => {
+  await Promise.all([document.fonts.load('600 24px "Noto Serif KR"'), document.fonts.load('24px "Malgun Gothic"'), document.fonts.load('20px "Palatino Linotype"')])
+  const A = await loadImg('../build/map_a.png'), B = await loadImg('../build/map_b.png'), TN = await loadImg('../build/tone.png'), SMI = await loadImg('../build/sheep_map.png')
+  const t = document.createElement('canvas'); t.width = MW; t.height = MH; const tg = t.getContext('2d', { willReadFrequently: true })
+  tg.drawImage(A, 0, 0); const AD = tg.getImageData(0, 0, MW, MH).data; tg.clearRect(0, 0, MW, MH); tg.drawImage(B, 0, 0); FB = tg.getImageData(0, 0, MW, MH).data
+  const s2 = document.createElement('canvas'); s2.width = SHP.w; s2.height = SHP.h; const s2g = s2.getContext('2d', { willReadFrequently: true }); s2g.drawImage(SMI, 0, 0); const SMD = s2g.getImageData(0, 0, SHP.w, SHP.h).data
+  buildLines(AD, SMD)
+  FBOX = Array.from({ length: 7 }, () => [1e9, 1e9, -1, -1]); for (let i = 0; i < MW * MH; i += 7) { const f = FB[i * 4], x = i % MW, y = (i / MW) | 0, b = FBOX[f]; if (!b) continue; if (x < b[0]) b[0] = x; if (y < b[1]) b[1] = y; if (x > b[2]) b[2] = x; if (y > b[3]) b[3] = y }
+  TONE = document.createElement('canvas'); TONE.width = MW; TONE.height = MH; TONE.getContext('2d').drawImage(TN, 0, 0)
+  mc = document.createElement('canvas'); mc.width = MW; mc.height = MH; mcg = mc.getContext('2d'); maskImg = mcg.createImageData(MW, MH); for (let i = 0; i < MW * MH; i++) { maskImg.data[i * 4] = 255; maskImg.data[i * 4 + 1] = 255; maskImg.data[i * 4 + 2] = 255 }
+  fc = document.createElement('canvas'); fc.width = MW; fc.height = MH; fcg = fc.getContext('2d')
+  SH3 = document.createElement('canvas'); SH3.width = W3.w; SH3.height = W3.h; sh3 = SH3.getContext('2d')
+  CX = dec16(C3.x); CY = dec16(C3.y); CZ = dec16(C3.z); CNX = dec16(C3.nx); CNY = dec16(C3.ny); CNZ = dec16(C3.nz); { const s = atob(C3.k); CK = new Int8Array(s.length); for (let i = 0; i < s.length; i++) CK[i] = s.charCodeAt(i) }
+  cc = document.createElement('canvas'); cc.width = W; cc.height = H; ccg = cc.getContext('2d'); cimg = ccg.createImageData(W, H)
+  const bin = atob(D.bars.b64); BARS = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) BARS[i] = bin.charCodeAt(i)
+  const ICS = await Promise.all(['drums', 'percussion', 'bass', 'guitar', 'keyboard', 'brass', 'woodwinds'].map(k => loadImg('../inputs/icons/' + k + '.png')))
+  ICW = ICS.map(im => { if (!im) return null; const c = document.createElement('canvas'); c.width = 96; c.height = 96; const x = c.getContext('2d'); x.drawImage(im, 0, 0, 96, 96); x.globalCompositeOperation = 'source-in'; x.fillStyle = rgb(WHITE); x.fillRect(0, 0, 96, 96); return c })
+  BREATH = (await Promise.all(Array.from({ length: 80 }, (_, i) => loadImg('../inputs/breath/f' + String(i + 1).padStart(4, '0') + '.png')))).map(im => { if (!im) return null; const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = rgb(WHITE); x.fillRect(0, 0, c.width, c.height); return c })
+  const sh = await loadImg('../inputs/shadow_overlay.png')
+  if (sh) { const m = document.createElement('canvas'); m.width = W; m.height = H; const mg = m.getContext('2d', { willReadFrequently: true }); mg.drawImage(sh, 0, 0, W, H); const md = mg.getImageData(0, 0, W, H); for (let i = 0; i < W * H; i++) md.data[i * 4 + 3] = Math.min(255, md.data[i * 4 + 3] * 9); mg.putImageData(md, 0, 0)
+    HATCH = document.createElement('canvas'); HATCH.width = W; HATCH.height = H; const hg = HATCH.getContext('2d'); hg.strokeStyle = rgb(SKY, 0.55); hg.lineWidth = 1; for (let k = -H; k < W; k += 7) { hg.beginPath(); hg.moveTo(k, H); hg.lineTo(k + H, 0); hg.stroke() } hg.globalCompositeOperation = 'destination-in'; hg.drawImage(m, 0, 0) }
+  THC = await Promise.all([1, 2, 3, 4, 5, 6].map(n => loadImg('../inputs/thumbs/' + n + '.png')))     // 끝에서 고르는 썸네일 후보(없으면 빈 칸)
+  STICK = await loadImg('../build/sticker_line.png')
+  { const oc = document.createElement('canvas'); oc.width = 1920; oc.height = 1080; const ox = oc.getContext('2d', { willReadFrequently: true }); const a = ID.tt1, b = ID.tt2; ox.fillStyle = '#fff'; ox.font = a.font; ox.fillText(a.text, a.x, a.y); ox.font = b.font; ox.fillText(b.text, b.x, b.y)
+    const idt = ox.getImageData(0, 0, 1920, 1080).data, src = []; for (let y = F.y; y < F.y + 260; y += 2) for (let x = F.x; x < F.x + 520; x += 2) if (idt[(y * 1920 + x) * 4 + 3] > 128) src.push([x, y])
+    const tgt = []; for (let n = 0; n < LX.length; n++) if (LR[n] === D.TITLE_REG) { const i = LX[n]; tgt.push([F.x + (i % MW) * K, F.y + ((i / MW) | 0) * K, LT[n]]) }
+    src.sort((p, q) => p[0] - q[0]); tgt.sort((p, q) => p[0] - q[0]); const r = mulberry(55), N = Math.min(1500, src.length)
+    for (let k = 0; k < N && tgt.length; k++) { const s0 = src[Math.floor(k / N * src.length)], t0 = tgt[Math.floor(k / N * tgt.length)]; TPS.push({ x0: s0[0], y0: s0[1], x1: t0[0], y1: t0[1], s: Math.max(ID.p15_1.t0 - 0.2, t0[2] - 1.0) + r() * 0.15 }) } }
+  window.__missing = { icons: ICW.filter(x => !x).length, breath: BREATH.filter(x => !x).length, hatch: !HATCH, tone: !TN, sheep: !SMI, stick: !STICK, thumbs: THC.filter(x => !x).length, jobs: J.length, unscheduled: Object.keys(P).filter(k => !ID['p' + k]) }
+  window.__seekTo = async T => { await render(T); return true }
+  window.__end = END; window.__ready = true
+})()
+</script></body></html>

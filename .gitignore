@@ -1,0 +1,6 @@
+﻿inputs/*
+!inputs/README.md
+build/
+out/
+node_modules/
+__pycache__/
